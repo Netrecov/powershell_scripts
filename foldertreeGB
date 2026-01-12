@@ -1,0 +1,37 @@
+$root = "\\?\C:\Path\To\Folder"
+$maxDepth = 4
+
+function Get-FolderSizeGB {
+    param([string]$Path)
+    try {
+        $sizeBytes = (
+            Get-ChildItem -LiteralPath $Path -File -Recurse -ErrorAction SilentlyContinue |
+            Measure-Object Length -Sum
+        ).Sum
+
+        if ($sizeBytes) {
+            [math]::Round($sizeBytes / 1GB, 2)
+        } else {
+            0
+        }
+    } catch {
+        0
+    }
+}
+
+Get-ChildItem -LiteralPath $root -Directory -Recurse | ForEach-Object {
+    $folder = $_
+
+    # Calculate depth relative to root
+    $depth = ($folder.FullName.Substring($root.Length) -split '\\').Count - 1
+
+    if ($depth -le $maxDepth) {
+        [PSCustomObject]@{
+            Depth    = $depth
+            Folder   = (' ' * ($depth * 2)) + $folder.Name
+            FullPath = $folder.FullName
+            SizeGB   = Get-FolderSizeGB $folder.FullName
+            Owner    = ""
+        }
+    }
+} | Export-Csv "C:\Temp\folder-tree.csv" -NoTypeInformation -Encoding UTF8
